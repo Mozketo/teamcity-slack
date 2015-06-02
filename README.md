@@ -31,6 +31,14 @@ Add notification rules as appropriate.
 
 Tested exclusively with TeamCity version 8.1.1.
 
+## How to Build and Package
+
+1. Install Java [JDK](http://www.oracle.com/technetwork/java/javase/downloads/index.html),
+2. Install Maven follow installation instructions [here](https://maven.apache.org/download.cgi),
+3. Build the project with the command `mvn package`,
+4. Wait,
+5. Open the target/ folder > `teamcity-slack-integration.zip` contains the built and packaged app.
+
 ## Contributors
 
 [Jesse Dunlap](https://twitter.com/jessedunlap)
