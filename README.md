@@ -9,7 +9,7 @@ Because it is a [TeamCity Custom Notifier](http://confluence.jetbrains.com/displ
 
 ## Installation
 
-1. Download the [plugin zip package](/target/teamcity-slack-integration.zip).
+1. Download the [latest plugin zip package](/releases/download/v1.0/teamcity-slack-integration.zip), or a specific GitHub [Release](/releases).
 2. Follow the TeamCity [plugin installation directions](http://confluence.jetbrains.com/display/TCD8/Installing+Additional+Plugins).
 
 ## Configuration
