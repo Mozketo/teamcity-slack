@@ -14,6 +14,7 @@ import jetbrains.buildServer.users.NotificatorPropertyKey;
 import jetbrains.buildServer.users.PropertyKey;
 import jetbrains.buildServer.users.SUser;
 import jetbrains.buildServer.vcs.VcsRoot;
+import jetbrains.buildServer.vcs.SelectPrevBuildPolicy;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -22,6 +23,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
+import java.util.Iterator;
+import java.lang.reflect.*;
 
 public class SlackNotificator implements Notificator {
 
@@ -52,31 +55,31 @@ public class SlackNotificator implements Notificator {
     }
 
     public void notifyBuildFailed(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> users) {
-         sendNotification(sRunningBuild.getFullName(), sRunningBuild.getBuildNumber(), "failed", "danger", users);
+         sendNotification(sRunningBuild, "danger", users);
     }
 
     public void notifyBuildFailedToStart(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> users) {
-        sendNotification(sRunningBuild.getFullName(), sRunningBuild.getBuildNumber(), "failed to start", "danger", users);
+        sendNotification(sRunningBuild, "danger", users);
     }
 
     public void notifyBuildSuccessful(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> users) {
-        sendNotification(sRunningBuild.getFullName(), sRunningBuild.getBuildNumber(), "built successfully", "good", users);
+        sendNotification(sRunningBuild, "good", users);
     }
 
-    public void notifyLabelingFailed(@NotNull Build build, @NotNull VcsRoot vcsRoot, @NotNull Throwable throwable, @NotNull Set<SUser> sUsers) {
-        sendNotification(build.getFullName(), build.getBuildNumber(), "labeling failed", "danger", sUsers);
+    public void notifyLabelingFailed(@NotNull Build build, @NotNull VcsRoot vcsRoot, @NotNull Throwable throwable, @NotNull Set<SUser> users) {
+        sendBuildNotification(build.getFullName(), build.getBuildNumber(), "labeling failed", "danger", "", users);
     }
 
-    public void notifyBuildFailing(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> sUsers) {
-        sendNotification(sRunningBuild.getFullName(), sRunningBuild.getBuildNumber(), "failing", "danger", sUsers);
+    public void notifyBuildFailing(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> users) {
+        sendNotification(sRunningBuild, "danger", users);
     }
 
-    public void notifyBuildProbablyHanging(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> sUsers) {
-        sendNotification(sRunningBuild.getFullName(), sRunningBuild.getBuildNumber(), "probably hanging", "warning", sUsers);
+    public void notifyBuildProbablyHanging(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> users) {
+        sendNotification(sRunningBuild, "warning", users);
     }
 
-    public void notifyBuildStarted(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> sUsers) {
-        sendNotification(sRunningBuild.getFullName(), sRunningBuild.getBuildNumber(), "started", "warning", sUsers);
+    public void notifyBuildStarted(@NotNull SRunningBuild sRunningBuild, @NotNull Set<SUser> users) {
+        sendNotification(sRunningBuild, "warning", users);
     }
 
     public void notifyResponsibleChanged(@NotNull SBuildType sBuildType, @NotNull Set<SUser> sUsers) {
@@ -142,11 +145,39 @@ public class SlackNotificator implements Notificator {
         return userPropertyInfos;
     }
 
-    private void sendNotification(String project, String build, String statusText, String statusColor, Set<SUser> users) {
+    private void sendNotification(@NotNull SRunningBuild sRunningBuild, String statusColor, Set<SUser> users) {
         for (SUser user : users) {
             SlackWrapper slackWrapper = getSlackWrapperWithUser(user);
             try {
-                slackWrapper.send(project, build, statusText, statusColor);
+                String project = sRunningBuild.getFullName();
+                String buildNumber = sRunningBuild.getBuildNumber();
+                String status = sRunningBuild.getStatusDescriptor().getStatus().getText();
+                String message = sRunningBuild.getStatusDescriptor().getText();
+                //jetbrains.buildServer.users.UserSet<SUser> committers = sRunningBuild.getCommitters(jetbrains.buildServer.vcs.SelectPrevBuildPolicy.SINCE_LAST_BUILD);
+                String committers = convertUserSetToCsv(sRunningBuild.getCommitters(SelectPrevBuildPolicy.SINCE_LAST_SUCCESSFULLY_FINISHED_BUILD).getUsers());
+                
+                slackWrapper.send(project, buildNumber, status, statusColor, message, committers);
+            }
+            catch (IllegalAccessException e) {
+                log.error(e);
+            }
+            catch (InvocationTargetException e) {
+                log.error(e);
+            }
+            catch (NoSuchMethodException e) {
+                log.error(e);
+            }
+            catch (IOException e) {
+                log.error(e.getMessage());
+            }
+        }
+    }
+    
+    private void sendBuildNotification(String project, String build, String statusText, String statusColor, String message, Set<SUser> users) {
+        for (SUser user : users) {
+            SlackWrapper slackWrapper = getSlackWrapperWithUser(user);
+            try {
+                slackWrapper.send(project, build, statusText, statusColor, message, "");
             }
             catch (IOException e) {
                 log.error(e.getMessage());
@@ -182,4 +213,30 @@ public class SlackNotificator implements Notificator {
 
         return slackWrapper;
     }
+    
+    public static String convertUserSetToCsv(Set<SUser> set)
+			throws IllegalAccessException, InvocationTargetException,
+			NoSuchMethodException {
+		return convertSetToCsv(set, SUser.class.getMethod("getUsername"), ",");
+	}
+
+	public static String convertSetToCsv(Set<?> set, Method method,
+			String delimiter) throws IllegalAccessException,
+			InvocationTargetException {
+		StringBuffer builder = new StringBuffer();
+		Iterator<?> iter = set.iterator();
+		while (iter.hasNext()) {
+			Object e = iter.next();
+			if (method != null) {
+				builder.append(method.invoke(e));
+			} else {
+				builder.append(e);
+			}
+			if (!iter.hasNext()) {
+				break;
+			}
+			builder.append(delimiter);
+		}
+		return builder.toString();
+	}
 }

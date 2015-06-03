@@ -12,23 +12,25 @@ public class SlackWrapper
 
     protected String channel;
 
-    public String send(String project, String build, String statusText, String statusColor) throws IOException
+    public String send(String project, String buildNumber, String statusText, String statusColor, String message, String committers) throws IOException
     {
-        String payloadText = project + " #" + build + " " + statusText;
-        String attachmentProject = "{\"title\":\"Project\",\"value\":\"" + project + "\",\"short\": false}";
-        String attachmentBuild = "{\"title\":\"Build\",\"value\":\"" + build + "\",\"short\": true}";
-        String attachmentStatus = "{\"title\":\"Status\",\"value\":\"" + statusText + "\",\"short\": false}";
+        String payloadText = project + " #" + buildNumber + " " + statusText;
+        String attachmentProject = "{\"title\":\"Project\",\"value\":\"" + project + "\",\"short\": true}";
+        String attachmentBuild = "{\"title\":\"Build\",\"value\":\"" + buildNumber + "\",\"short\": true}";
+        String attachmentStatus = "{\"title\":\"" + statusText + "\",\"value\":\"" + message + "\",\"short\": false}";
+        String committersField = "{\"title\":\"Committers\",\"value\":\"" + committers + "\",\"short\": false}";
 
         String formattedPayload = "payload={" +
             "\"text\":\"" + payloadText + "\"," +
             "\"attachments\": [{" +
                 "\"fallback\":\"" + payloadText + "\"," +
-                "\"pretext\":\"Build Status\"," +
+                //"\"pretext\":\"Build Status\"," +
                 "\"color\":\"" + statusColor + "\"," +
                 "\"fields\": [" +
                     attachmentProject + "," +
                     attachmentBuild + "," +
-                    attachmentStatus +
+                    attachmentStatus + "," +
+                    committersField +
                 "]" +
             "}]," +
             "\"channel\":\"" + this.getChannel() + "\"," +
